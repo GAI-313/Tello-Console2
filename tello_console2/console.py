@@ -34,7 +34,7 @@ class Console():
 
     def __init__ (self, show_log=True):
         ## initial valiables
-        self.get_status_interval = 10
+        self.get_status_interval = 1
         self.show_log = show_log # show log
         self.low_battery_error_level = 10 # set clitical low battery warning for debug
         self.response = None
@@ -94,21 +94,37 @@ class Console():
         if error_msg == "low_battery":
             log_msg = 'バッテリー残量がありません'
             exit_msg = "ドローンのバッテリー残量が残りわずかであるため、TELLO CONSOLE は終了しました。バッテリーを充電または交換してください。"
+        elif error_msg == "motor_stop":
+            log_msg = 'モーターが停止しています'
+            exit_msg = "ドローンのモーターが停止しました。このメソッドは実行できません"
         else:
             log_msg = 'ドローンとの通信に失敗しました！'
             exit_msg = "ドローンとの接続に失敗したため、TELLO CONSOLE は終了しました。接続を確認してください。"
         self.log.error(log_msg)
         self.clean()
         sys.exit(exit_msg)
+    
+    def _issues_inspector(self, msg):
+        if 'error Auto land' in msg or 'error Low voltage land' in msg:
+            if self.get_status('battery') <= 10:
+                self._error_handler('low_battery')
+        elif 'error Motor stop' in msg:
+            self._error_handler('motor_stop')
+        else:
+            self.log.error('CONTROL ERROR IS OCURED. msg is ... \n'+msg)
 
     def _recver(self, event_killer):
         init_time = time.time()
         while not event_killer.is_set():
             try:
-                if time.time() - init_time > self.get_status_interval:
+                if self.response is None:
+                    if time.time() - init_time > self.get_status_interval:
+                        init_time = time.time()
+                        self.get_status()
+                        self.log.info('STATUS UPDATED...')
+                else:
                     init_time = time.time()
-                    self.get_status()
-                    self.log.info('STATUS UPDATED...')
+
                 self.response, _ = self.socket.recvfrom(3000)
             except socket.error as exc:
                 #print(exc)
@@ -356,6 +372,9 @@ class Console():
             
         except OSError:
             self._error_handler()
+        
+        except KeyboardInterrupt:
+            self.emergency()
 
     def land(self,wait=10):
         try:
@@ -388,7 +407,7 @@ class Console():
                 self.log.warning('このメソッドは500以上の値を指定できません。指定可能範囲は 20 ~ 500 です')
             response = self.send_cmd('up %d'%(distance), show=self.show_log, wait=wait)
             if 'ok' not in response and wait is not None:
-                self.log.error('CONTROL ERROR IS OCURED. msg is ... \n'+response)
+                self._issues_inspector(response)
             return response
             
         except OSError:
@@ -404,7 +423,7 @@ class Console():
                 self.log.warning('このメソッドは500以上の値を指定できません。指定可能範囲は 20 ~ 500 です')
             response = self.send_cmd('down %d'%(distance), show=self.show_log, wait=wait)
             if 'ok' not in response and wait is not None:
-                self.log.error('CONTROL ERROR IS OCURED. msg is ... \n'+response)
+                self._issues_inspector(response)
             return response
             
         except OSError:
@@ -420,7 +439,7 @@ class Console():
                 self.log.warning('このメソッドは500以上の値を指定できません。指定可能範囲は 20 ~ 500 です')
             response = self.send_cmd('forward %d'%(distance), show=self.show_log, wait=wait)
             if 'ok' not in response and wait is not None:
-                self.log.error('CONTROL ERROR IS OCURED. msg is ... \n'+response)
+                self._issues_inspector(response)
             return response
             
         except OSError:
@@ -436,7 +455,7 @@ class Console():
                 self.log.warning('このメソッドは500以上の値を指定できません。指定可能範囲は 20 ~ 500 です')
             response = self.send_cmd('back %d'%(distance), show=self.show_log, wait=wait)
             if 'ok' not in response and wait is not None:
-                self.log.error('CONTROL ERROR IS OCURED. msg is ... \n'+response)
+                self._issues_inspector(response)
             return response
             
         except OSError:
@@ -452,7 +471,7 @@ class Console():
                 self.log.warning('このメソッドは500以上の値を指定できません。指定可能範囲は 20 ~ 500 です')
             response = self.send_cmd('right %d'%(distance), show=self.show_log, wait=wait)
             if 'ok' not in response and wait is not None:
-                self.log.error('CONTROL ERROR IS OCURED. msg is ... \n'+response)
+                self._issues_inspector(response)
             return response
             
         except OSError:
@@ -468,7 +487,7 @@ class Console():
                 self.log.warning('このメソッドは500以上の値を指定できません。指定可能範囲は 20 ~ 500 です')
             response = self.send_cmd('left %d'%(distance), show=self.show_log, wait=wait)
             if 'ok' not in response and wait is not None:
-                self.log.error('CONTROL ERROR IS OCURED. msg is ... \n'+response)
+                self._issues_inspector(response)
             return response
             
         except OSError:
@@ -487,7 +506,7 @@ class Console():
             time.sleep(0.5)
             response = self.send_cmd('cw %d'%(angle), show=self.show_log, wait=wait)
             if 'ok' not in response and wait is not None:
-                self.log.error('CONTROL ERROR IS OCURED. msg is ... \n'+response)
+                self._issues_inspector(response)
             return response
             
         except OSError:
@@ -506,7 +525,7 @@ class Console():
             time.sleep(0.5)
             response = self.send_cmd('ccw %d'%(angle), show=self.show_log, wait=wait)
             if 'ok' not in response and wait is not None:
-                self.log.error('CONTROL ERROR IS OCURED. msg is ... \n'+response)
+                self._issues_inspector(response)
             return response
             
         except OSError:
@@ -516,7 +535,7 @@ class Console():
         try:
             response = self.send_cmd('go %d %d %d %d'%(x,y,z,speed), show=self.show_log, wait=wait)
             if 'ok' not in response and wait is not None:
-                self.log.error('CONTROL ERROR IS OCURED. msg is ... \n'+response)
+                self._issues_inspector(response)
             return response
             
         except OSError:
@@ -526,7 +545,7 @@ class Console():
         try:
             response = self.send_cmd('direction '+direction, show=self.show_log, wait=wait)
             if 'ok' not in response and wait is not None:
-                self.log.error('CONTROL ERROR IS OCURED. msg is ... \n'+response)
+                self._issues_inspector(response)
             return response
             
         except OSError:
@@ -586,7 +605,7 @@ class Console():
             if detect:
                 response = self.send_cmd('mon', show=self.show_log, wait=wait)
                 if 'ok' not in response and wait is not None:
-                    self.log.error('CONTROL ERROR IS OCURED. msg is ... \n'+response)
+                    self._issues_inspector(response)
                 if detect_area == 'down':
                     detect_area = 0
                 elif detect_area == 'forward':
@@ -599,7 +618,7 @@ class Console():
 
                 response = self.send_cmd('mdirection %d'%detect_area, show=self.show_log, wait=wait)
                 if 'ok' not in response and wait is not None:
-                    self.log.error('CONTROL ERROR IS OCURED. msg is ... \n'+response)
+                    self._issues_inspector(response)
 
         except OSError:
             self._error_handler()
