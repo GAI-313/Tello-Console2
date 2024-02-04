@@ -29,6 +29,8 @@ class Console():
     FRAME_CENTER_X, FRAME_CENTER_Y= FRAME_WIDTH / 2, FRAME_HEIGHT / 2
     FFMPEG_CMD = (f'ffmpeg -hwaccel auto -hwaccel_device opencl -i pipe:0 '
               f'-pix_fmt bgr24 -s {FRAME_WIDTH}x{FRAME_HEIGHT} -f rawvideo pipe:1')
+    FFMPEG_CMD = (f'ffmpeg -i pipe:0 '
+        f'-pix_fmt bgr24 -s {FRAME_WIDTH}x{FRAME_HEIGHT} -f rawvideo pipe:1')
 
     def __init__ (self, show_log=True):
         ## initial valiables
@@ -42,6 +44,7 @@ class Console():
         self.frame = None
         self.rotate_frame = False # down vision resize video flag
         self.proc = None
+        self._proc_exit_cycle = 0
 
         ## log set
         logging.basicConfig(level=logging.INFO, stream=sys.stdout)
@@ -182,6 +185,7 @@ class Console():
                 
             else:
             '''
+            #print(self.FFMPEG_CMD)
             self.proc = subprocess.Popen(self.FFMPEG_CMD.split(' '), 
                                          stdin=subprocess.PIPE, 
                                          stdout=subprocess.PIPE,
@@ -229,10 +233,16 @@ class Console():
             sock_video.bind((host_ip, tello_video_port))
             data = bytearray(2048)
             while not stop_event.is_set():
+                #self.log.info(self._proc_exit_cycle)
+                if self._proc_exit_cycle > 3:
+                    self.log.error('STREAM TIMEOUT BREAK')
+                    self.clean()
                 try:
                     size, _ = sock_video.recvfrom_into(data)
+                    self._proc_exit_cycle = 0
                 except socket.timeout as exception:
                     self.log.warning({'video streaming':exception})
+                    self._proc_exit_cycle += 1
                     time.sleep(0.5)
                     continue
                 except socket.error as exception:
@@ -245,6 +255,7 @@ class Console():
                 except Exception as exception:
                     self.log.error({'video streaming':exception})
                     break
+
                 '''
                 try:
                     frame = self.proc_stdout.read(self.FRAME_DATA_SIZE)
@@ -285,7 +296,7 @@ class Console():
                 frame = np.frombuffer(frame, np.uint8).reshape(self.FRAME_HEIGHT, self.FRAME_WIDTH, 3)
                 if self.rotate_frame:
                     frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
-
+                frame = cv2.UMat(frame)
                 self.frame = frame
         except ValueError:
             pass
