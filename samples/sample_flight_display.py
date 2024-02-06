@@ -4,7 +4,6 @@ import cv2
 drone = Console()
 drone.stream(True)
 drone.downvision(False)
-#drone.takeoff() # 離陸させたい場合このコメントを外す
 
 fw,fh = drone.FRAME_WIDTH // 2, drone.FRAME_HEIGHT // 2
 try:
