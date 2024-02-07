@@ -9,10 +9,19 @@ set "telloconsole=Tello-Console2\tello_console2"
 
 echo %PYTHONPATH% | find "%telloconsole%" > nul
 if %errorlevel% equ 0 (
-    echo TELLO-CONSOLE2 is already added in PYTHONPATH
+    rem TELLO-CONSOLE2 is already added in PYTHONPATH
 ) else (
     setx PYTHONPATH "%PYTHONPATH%;%USERPROFILE%\Tello-Console2\tello_console2"
     start cmd /c python -c "from console import Console"
+)
+
+rem check installed CV2
+python -c "import cv2" 2>nul
+if %errorlevel% neq 0 (
+    echo OpenCV をインストールします
+    pip install opencv-python
+) else (
+    rem ok
 )
 
 :LOOP
@@ -64,6 +73,9 @@ if defined ffmpeg_dir_exists (
     powershell -Command "Expand-Archive -Path '%ffmpeg_zip_path%' -DestinationPath '%extractPath%' -Force"
     goto :CHECK_DIR
 )
+
+:NOT_END
+echo 問題を解決して再実行してください
 
 :END
 echo Done !
