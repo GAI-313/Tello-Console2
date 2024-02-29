@@ -30,6 +30,7 @@ class Console():
     FFMPEG_CMD = (f'ffmpeg -hwaccel auto -hwaccel_device opencl -i pipe:0 '
               f'-pix_fmt bgr24 -s {FRAME_WIDTH}x{FRAME_HEIGHT} -f rawvideo pipe:1')
 
+
     def __init__ (self, show_log=True):
         ## initial valiables
         self.get_status_interval = 1
@@ -43,6 +44,9 @@ class Console():
         self.rotate_frame = False # down vision resize video flag
         self.proc = None
         self._proc_exit_cycle = 0
+        self.sdk = None
+        self.wifi = None
+        self.sn = None
 
         ## log set
         logging.basicConfig(level=logging.INFO, stream=sys.stdout)
@@ -60,6 +64,9 @@ class Console():
 
             ## drone check and start
             self.send_cmd('command', show=False)
+            self.sdk = self.send_cmd('sdk?', show=False)
+            self.wifi = self.send_cmd('wif?', show=False)
+            self.sn = self.send_cmd('sn?', show=False)
             self.battery_level = self.get_status()['battery']
             self.log.info('残りバッテリー残量 %d パーセント'%self.battery_level)
             
@@ -307,6 +314,7 @@ class Console():
                 if self.rotate_frame:
                     frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
 
+                frame = cv2.UMat(frame)
                 self.frame = frame
         except ValueError:
             pass
