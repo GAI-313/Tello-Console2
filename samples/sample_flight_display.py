@@ -4,7 +4,7 @@ import cv2
 #drone = Console(show_log=False)
 drone = Console()
 drone.stream(True)
-drone.downvision(False)
+drone.downvision(True)
 #drone.takeoff()
 
 fw,fh = drone.FRAME_WIDTH // 2, drone.FRAME_HEIGHT // 2
