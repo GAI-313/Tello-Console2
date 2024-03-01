@@ -17,13 +17,21 @@ git clone https://github.com/GAI-313/Tello-Console2.git
 ```bash
 pip install opencv-python
 ```
-　このパッケージを以下のコマンドを実行して PYTHONPATH に追加します。
+  もし上記のコマンドを実行して
+```
+error: externally-managed-environment
+```
+から始まる `pip` 関連のエラーが発生したら以下のコマンドを実行してください。
 ```bash
-echo 'export PYTHONPATH=$HOME/Tello-Console2/tello_console2:$PYTHONPATH' >> ~/.bash_profile
+pip install  --break-system-packages opencv-python
+```
+　インストールが完了したらこのパッケージを以下のコマンドを実行して PYTHONPATH に追加します。
+```bash
+echo 'export PYTHONPATH=$HOME/Tello-Console2/tello_console2:$PYTHONPATH' >> ~/.bashrc
 ```
 　以下のコマンドを実行してパッケージを再読み込みします。
 ```bash
-source ~/.bash_profile
+source ~/.bashrc
 ```
 ## 使用方法
 　Python スクリプト上に以下のモジュールをインポートすることで利用できます。
