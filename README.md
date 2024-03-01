@@ -36,7 +36,7 @@ source ~/.bashrc
 ## 使用方法
 　Python スクリプト上に以下のモジュールをインポートすることで利用できます。
 ```python
-from tello-console2.console import Console
+from console import Console
 ```
 　インポートした `Console` コンストラクタを任意の変数に格納させインスタンス化して任意のメソッドを使用できます。
 ```python
