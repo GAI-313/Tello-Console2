@@ -14,7 +14,7 @@ import asyncio
 
 class Console():
 
-    LOCAL_IP = '192.168.10.2'
+    LOCAL_IP = '0.0.0.0'
     LOCAL_PORT = 8889
     VIDEO_PORT = 11111
     TELLO_IP = '192.168.10.1'
