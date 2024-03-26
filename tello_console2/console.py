@@ -32,7 +32,7 @@ class Console():
     FFMPEG_CMD = (f'ffmpeg -i pipe:0 '
         f'-pix_fmt bgr24 -s {FRAME_WIDTH}x{FRAME_HEIGHT} -f rawvideo pipe:1')
 
-    def __init__ (self, show_log=True):
+    def __init__ (self, show_log=True, drone_type="TELLO"):
         ## initial valiables
         self.get_status_interval = 1
         self.show_log = show_log # show log
@@ -45,6 +45,7 @@ class Console():
         self.rotate_frame = False # down vision resize video flag
         self.proc = None
         self._proc_exit_cycle = 0
+        self.drone_type = drone_type
 
         ## log set
         logging.basicConfig(level=logging.INFO, stream=sys.stdout)
@@ -62,7 +63,7 @@ class Console():
 
             ## drone check and start
             self.send_cmd('command', show=False)
-            self.battery_level = self.get_status()['battery']
+            self.battery_level = self.get_status('battery')
             self.log.info('残りバッテリー残量 %d パーセント'%self.battery_level)
             
             if self.battery_level < 50:
@@ -76,6 +77,7 @@ class Console():
             self._error_handler()
             
         except Exception as e:
+            traceback.print_exc()
             self.clean()
             self._error_handler(str(e))
 
@@ -159,35 +161,77 @@ class Console():
 
         except OSError:
             self._error_handler()
+        except UnicodeDecodeError:
+            self._error_handler()
 
     def get_status(self,*keys):
-        try:
-            keydata = []
-            raw_status = self.send_cmd('status?', show=False)
-            status = {key: [int(val) if '.' not in val else float(val) for val in value] if len(value) > 1 else (int(value[0]) if '.' not in value[0] else float(value[0])) for key, value in dict(
-                        zip(['mid', 'x', 'y', 'z', 'mpry', 'pitch', 'roll', 'yaw', 'vgx', 'vgy', 'vgz', 'templ', 'temph', 'tof', 'height', 'battery', 'baro', 'time', 'agx', 'agy', 'agz'],
-                            [item for item in [re.findall(r'-?\d+\.?\d*', item) for item in raw_status.split(';')] if item is not None])).items()}
-            self._status_buckup = status
-            if not keys:
+        if self.drone_type == "TELLO":
+            _key = ''
+            try:
+                status = []
+                for key in keys:
+                    if key == "roll" or key == "pitch" or key == "yaw":
+                        _key = key
+                        key = "attitude"
+                    data = self.send_cmd(f'{key}?', show=False)
+                    if ';' in data:
+                        s = [int(re.search(r'\d+', item).group()) for item in data.split(';')[:-1] if re.search(r'\d+', item)]
+                        if _key == 'pitch':
+                            s = s[0]
+                        if _key == 'roll':
+                            s = s[1]
+                        if _key == 'yaw':
+                            s = s[2]
+                    else:
+                        s = int(re.findall(r'-?\d+\.?\d*', data)[0])
+                    status.append(s)
+                if len(status) == 1:
+                    status = status[0]
+                self._status_buckup = status
                 return status
-            else:
-                if len(keys) == 1:
-                    return status[keys[0]]
+            except IndexError:
+                self.log.warning('DETECT BROKEN DATA')
+                s = []
+                for key in keys:
+                    s.append(self.get_status(key))
+                if len(status) == 1:
+                    s = s[0]
+                status = s
+                return s
+            
+        elif self.drone_type == "TELLO-EDU":
+            try:
+                keydata = []
+                raw_status = self.send_cmd('status?', show=True)
+                status = {key: [int(val) if '.' not in val else float(val) for val in value] if len(value) > 1 else (int(value[0]) if '.' not in value[0] else float(value[0])) for key, value in dict(
+                            zip(['mid', 'x', 'y', 'z', 'mpry', 'pitch', 'roll', 'yaw', 'vgx', 'vgy', 'vgz', 'templ', 'temph', 'tof', 'height', 'battery', 'baro', 'time', 'agx', 'agy', 'agz'],
+                                [item for item in [re.findall(r'-?\d+\.?\d*', item) for item in raw_status.split(';')] if item is not None])).items()}
+                if not keys:
+                    return status
+                else:
+                    if len(keys) == 1:
+                        return status[keys[0]]
 
-                for key in keys:
-                    keydata.append(status[key])
-                return keydata
-        except IndexError:
-            self.log.warning('RETURN OLD DATA')
-            if not keys:
-                return self._status_buckup
-            else:
-                if len(keys) == 1:
-                    return self._status_buckup[keys[0]]
-                
-                for key in keys:
-                    keydata.append(self._status_buckup[key])
-                return keydata
+                    for key in keys:
+                        keydata.append(status[key])
+                    return keydata
+            except IndexError:
+                self.log.warning('RETURN OLD DATA')
+                print(keys)
+                if self._status_buckup is None:
+                    if len(keys) == 1:
+                        status = self.send_cmd(keys[0]+'?', show=True)
+                        return status
+                        
+                if not keys:
+                    return self._status_buckup
+                else:
+                    if len(keys) == 1:
+                        return self._status_buckup[keys[0]]
+                    
+                    for key in keys:
+                        keydata.append(self._status_buckup[key])
+                    return keydata
 
     def stream(self, stream):
         if stream:
